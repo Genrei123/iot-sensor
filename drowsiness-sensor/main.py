@@ -13,7 +13,8 @@ import config
 from database_manager import init_database, load_all_driver_encodings
 from face_recognizer import load_face_models, detect_and_recognize_face
 from drowsiness_detector import calculate_ear, dist  # Import EAR helpers
-from arduino_comm import ArduinoComm
+# from arduino_comm import ArduinoComm
+from esp32_comm import ESP32Comm
 from ui_manager import run_driver_manager_ui
 from logging_config import log_performance, log_event
 import logging
@@ -322,7 +323,8 @@ def run_drowsiness_detection(arduino_handler, face_detector, face_embedder, know
                 current_driver_id = None; current_driver_name = None
                 last_verification_time = 0.0
                 status_text = status_if_fail; status_color = (0, 0, 255)
-                if DROWSINESS_ALERT: arduino_handler.send('0'); DROWSINESS_ALERT = False  # Use handler
+                # if DROWSINESS_ALERT: arduino_handler.send('0'); DROWSINESS_ALERT = False  # Use handler
+                if DROWSINESS_ALERT: esp32.send('0'); DROWSINESS_ALERT = False  # Use handler
                 COUNTER = 0
 
         # Display driver status
@@ -358,21 +360,23 @@ def run_drowsiness_detection(arduino_handler, face_detector, face_embedder, know
                         COUNTER += 1; eye_status = "Closed"
                         if COUNTER >= config.EYE_CLOSED_THRESH and not DROWSINESS_ALERT:
                             DROWSINESS_ALERT = True; TOTAL_ALERTS += 1
-                            arduino_handler.send('1')  # Use handler
+                            # arduino_handler.send('1')  # Use handler
+                            esp32.send('1')  # Use handler
                             print(f"[{time.strftime('%H:%M:%S')}] ALERT: Drowsiness detected for {current_driver_name}!")
                             log_event(f"ALERT: Drowsiness detected for {current_driver_name}!", level="warning")  # Add log entry
                     else:
                         eye_status = "Open"; COUNTER = 0
                         if DROWSINESS_ALERT:
-                            DROWSINESS_ALERT = False; arduino_handler.send('0'); print(f"[{time.strftime('%H:%M:%S')}] Alert deactivated.")
+                            # DROWSINESS_ALERT = False; arduino_handler.send('0'); print(f"[{time.strftime('%H:%M:%S')}] Alert deactivated.")
+                            DROWSINESS_ALERT = False; esp32.send('0'); print(f"[{time.strftime('%H:%M:%S')}] Alert deactivated.")
                 else:  # Handle case where landmark extraction failed
                     ear = 1.0; eye_status = "Error: Landmarks"
                     COUNTER = 0
-                    if DROWSINESS_ALERT: DROWSINESS_ALERT = False; arduino_handler.send('0')
+                    if DROWSINESS_ALERT: DROWSINESS_ALERT = False; esp32.send('0')
 
             else:  # No face landmarks detected by MediaPipe
                 eye_status = "Open (No Landmarks)"; ear = 1.0; COUNTER = 0
-                if DROWSINESS_ALERT: DROWSINESS_ALERT = False; arduino_handler.send('0')
+                if DROWSINESS_ALERT: DROWSINESS_ALERT = False; esp32.send('0')
 
             # Display Drowsiness Info
             cv2.putText(frame, f"EAR: {ear:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
@@ -450,7 +454,8 @@ if __name__ == "__main__":
     # Initialize components
     init_database()  # Ensure DB tables exist
     detector_net, embedder_net = load_face_models()
-    arduino = ArduinoComm()  # Create Arduino handler instance
+    # arduino = ArduinoComm()  # Create Arduino handler instance
+    esp32 = ESP32Comm(port=config.ESP32_PORT)  # Use the ESP32 port defined in config.py
 
     # Keep track of loaded state for cleanup
     models_loaded = detector_net is not None and embedder_net is not None
@@ -473,11 +478,14 @@ if __name__ == "__main__":
                 log_event("Warning: No known driver encodings loaded. Recognition may not work.", level="warning")  # Add log entry
 
             # Attempt to connect Arduino AFTER UI
-            arduino.connect()
-            arduino_connected_initially = arduino.is_connected()  # Store status after connect attempt
+            # arduino.connect()
+            # arduino_connected_initially = arduino.is_connected()  # Store status after connect attempt
+            esp32.connect()
+            arduino_connected_initially = esp32.is_connected()  # Store status after connect attempt
 
             # Run main detection loop
-            run_drowsiness_detection(arduino, detector_net, embedder_net, known_encodings)
+            # run_drowsiness_detection(arduino, detector_net, embedder_net, known_encodings)
+            run_drowsiness_detection(esp32, detector_net, embedder_net, known_encodings)
 
         else:
             print("\nCritical Error: Face models failed to load. Cannot proceed.")
@@ -496,8 +504,10 @@ if __name__ == "__main__":
         # Ensure Arduino disconnect is attempted regardless of errors
         print("--- System Shutdown ---")
         log_event("System Shutdown")  # Add log entry
-        if arduino and arduino.is_connected():
-            arduino.disconnect()
+        # if arduino and arduino.is_connected():
+        #     arduino.disconnect()        
+        if esp32 and esp32.is_connected():
+            esp32.disconnect()
         elif arduino_connected_initially:  # Log if initial connect worked but failed later
             print("Arduino was connected but may have encountered an error.")
             log_event("Arduino was connected but may have encountered an error.", level="warning")  # Add log entry

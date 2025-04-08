@@ -11,6 +11,9 @@ ARDUINO_PORT = 'COM8' # <<<--- CHANGE THIS to your Arduino port (or None to disa
 ARDUINO_BAUDRATE = 9600
 ARDUINO_TIMEOUT = 1
 
+# --- ESP32 Settings ---
+ESP32_PORT = "COM58"  # Replace with the actual port for your ESP32
+
 # --- Drowsiness Detection Settings ---
 EYE_AR_THRESH = 0.25  # Threshold for determining if the eye is closed
 EYE_CLOSED_THRESH = 15 # Number of consecutive frames eyes must be closed for alert
