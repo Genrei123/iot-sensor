@@ -7,7 +7,7 @@ DB_FILE = "drivers.db"
 MODELS_DIR = "models" # Base directory for models
 
 # --- Arduino Settings ---
-ARDUINO_PORT = 'COM8' # <<<--- CHANGE THIS to your Arduino port (or None to disable)
+ARDUINO_PORT = 'COM58' # <<<--- CHANGE THIS to your Arduino port (or None to disable)
 ARDUINO_BAUDRATE = 9600
 ARDUINO_TIMEOUT = 1
 
